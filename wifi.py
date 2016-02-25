@@ -1,17 +1,21 @@
 from scapy.all import *
+import re
 
 PROBE_REQUEST_TYPE=0
 PROBE_REQUEST_SUBTYPE=4
-
-WHITELIST = ['34:4d:f7:57:04:29',] # Replace this with your phone's MAC address
+iterations=0
 
 def PacketHandler(pkt):
     if pkt.haslayer(Dot11):
-        if pkt.type==PROBE_REQUEST_TYPE and pkt.subtype == PROBE_REQUEST_SUBTYPE and ( pkt.addr2.lower() in WHITELIST or pkt.addr2.upper() in WHITELIST):
+        if pkt.type==PROBE_REQUEST_TYPE and pkt.subtype == PROBE_REQUEST_SUBTYPE:
             PrintPacket(pkt)
-
+arr_mac = {}
 def PrintPacket(pkt):
-    print "Probe Request Captured:"
+    global iterations
+    iterations += 1
+
+    print "A: %d" % iterations
+
     try:
         extra = pkt.notdecoded
     except:
@@ -20,14 +24,23 @@ def PrintPacket(pkt):
         signal_strength = -(256-ord(extra[-4:-3]))
     else:
         signal_strength = -100
-        print "No signal strength found"
-    print "Target: %s Source: %s SSID: %s RSSi: %d"%(pkt.addr3,pkt.addr2,pkt.getlayer(Dot11ProbeReq).info,signal_strength)
+    mac = pkt.addr2
+    signal = signal_strength.__str__()
+    probe = pkt.getlayer(Dot11ProbeReq).info
+    arr_mac[mac] = signal
+#    print arr_mac
+    if iterations > 1000:
+        f = open('text.txt', 'w')
+        a = arr_mac.keys()
+       # print a
+        for mac in a:
+            sig = arr_mac[mac]
+            f.write(mac + '_' + sig.replace('-','') +'\n' )
+        f.close()
+        iterations = 0
+        arr_mac.clear()
 
 def main():
-    from datetime import datetime
-    print "[%s] Starting scan"%datetime.now()
-    print "Scanning for:"
-    print "\n".join(mac for mac in WHITELIST)
     sniff(iface=sys.argv[1],prn=PacketHandler)
 
 if __name__=="__main__":
